@@ -130,23 +130,23 @@ Identify and normalize drug names and medical conditions.
 
 Respond in this structured JSON format:
 ```json
-{
-  "demographics": {
-    "age": {"min": 18, "max": null, "description": "Adults aged 18 or older"},
+{{
+  "demographics": {{
+    "age": {{"min": 18, "max": null, "description": "Adults aged 18 or older"}},
     "gender": "Both male and female",
     "other": []
-  },
-  "medical_conditions": {
+  }},
+  "medical_conditions": {{
     "required": [],
     "excluded": []
-  },
-  "prior_treatments": {
+  }},
+  "prior_treatments": {{
     "required": [],
     "excluded": []
-  },
+  }},
   "lab_values": [],
   "special_requirements": []
-}
+}}
 ```
 """
         
