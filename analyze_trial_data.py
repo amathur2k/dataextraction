@@ -16,6 +16,7 @@ import json
 # Import our modules
 from trial_data_extractor import ClinicalTrialExtractor
 from llm_enhancer import LLMEnhancer
+from structured_summary import StructuredSummaryGenerator
 
 # Configure logging
 logging.basicConfig(
@@ -28,165 +29,180 @@ def process_file(
     input_file: str, 
     output_dir: str, 
     api_key: Optional[str] = None,
-    skip_llm: bool = False
+    skip_llm: bool = False,
+    skip_summary: bool = False
 ) -> tuple:
     """
-    Process a single clinical trial JSON file through extraction and enhancement.
+    Process a single clinical trial file through the complete pipeline.
     
     Args:
         input_file: Path to the input JSON file
         output_dir: Directory to save output files
-        api_key: OpenAI API key for LLM enhancement
+        api_key: OpenAI API key (optional)
         skip_llm: Whether to skip the LLM enhancement step
+        skip_summary: Whether to skip the structured summary generation step
     
     Returns:
-        Tuple of (extraction_success, enhancement_success) booleans
+        Tuple of (extraction_success, enhancement_success, summary_success)
     """
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
     
-    # Set up file paths
-    basename = os.path.basename(input_file)
-    name_without_ext = os.path.splitext(basename)[0]
-    extracted_file = os.path.join(output_dir, f"{name_without_ext}_extracted.json")
-    enhanced_file = os.path.join(output_dir, f"{name_without_ext}_enhanced.json")
+    # Step 1: Extract structured data using regex patterns
+    file_basename = os.path.basename(input_file)
+    name_without_ext = os.path.splitext(file_basename)[0]
+    extraction_output = os.path.join(output_dir, f"{name_without_ext}_extracted.json")
     
-    # Step 1: Extract structured data from the trial JSON
-    logger.info(f"Extracting data from {input_file}")
-    extractor = ClinicalTrialExtractor(input_file)
+    extraction_success = False
+    enhancement_success = False
+    summary_success = False
+    
     try:
-        extracted_data = extractor.extract_all()
-        extractor.save_extracted_data(extracted_file)
+        extractor = ClinicalTrialExtractor(input_file)
+        extractor.extract_all()
+        extractor.save_extracted_data(extraction_output)
         extraction_success = True
-        logger.info(f"Extraction completed successfully. Output saved to {extracted_file}")
+        logger.info(f"Extraction completed for {input_file}")
     except Exception as e:
         logger.error(f"Extraction failed: {e}")
-        return False, False
+        return extraction_success, enhancement_success, summary_success
     
-    # Step 2: Enhance the extracted data with LLM (if enabled)
+    # Step 2: Enhance extracted data using LLM (if not skipped)
     if not skip_llm:
-        logger.info(f"Enhancing data from {extracted_file}")
+        enhancement_output = os.path.join(output_dir, f"{name_without_ext}_enhanced.json")
+        
         try:
-            enhancer = LLMEnhancer(extracted_file, api_key)
-            enhanced_data = enhancer.enhance_all()
-            enhancer.save_enhanced_data(enhanced_file)
+            enhancer = LLMEnhancer(extraction_output, api_key)
+            enhancer.enhance_all()
+            enhancer.save_enhanced_data(enhancement_output)
             enhancement_success = True
-            logger.info(f"Enhancement completed successfully. Output saved to {enhanced_file}")
+            logger.info(f"Enhancement completed for {extraction_output}")
         except Exception as e:
             logger.error(f"Enhancement failed: {e}")
-            return extraction_success, False
+            return extraction_success, enhancement_success, summary_success
     else:
         logger.info("Skipping LLM enhancement step")
-        enhancement_success = None
+        enhancement_success = True  # Mark as successful if intentionally skipped
     
-    return extraction_success, enhancement_success
+    # Step 3: Generate structured summary (if not skipped)
+    if not skip_summary and enhancement_success:
+        summary_output = os.path.join(output_dir, f"{name_without_ext}_structured_summary.json")
+        
+        try:
+            # Use the enhanced data as input if available, otherwise use extracted data
+            input_for_summary = os.path.join(output_dir, f"{name_without_ext}_enhanced.json") if enhancement_success else extraction_output
+            
+            generator = StructuredSummaryGenerator(input_for_summary)
+            generator.generate_structured_summary()
+            generator.save_structured_summary(summary_output)
+            summary_success = True
+            logger.info(f"Structured summary generated for {input_for_summary}")
+        except Exception as e:
+            logger.error(f"Structured summary generation failed: {e}")
+    else:
+        if skip_summary:
+            logger.info("Skipping structured summary generation step")
+            summary_success = True  # Mark as successful if intentionally skipped
+    
+    return extraction_success, enhancement_success, summary_success
 
 def process_directory(
     input_dir: str, 
     output_dir: str, 
-    api_key: Optional[str] = None, 
+    api_key: Optional[str] = None,
     skip_llm: bool = False,
-    file_pattern: str = "*.json"
-) -> tuple:
+    skip_summary: bool = False
+) -> None:
     """
-    Process all JSON files in a directory through extraction and enhancement.
+    Process all JSON files in a directory.
     
     Args:
         input_dir: Directory containing input JSON files
         output_dir: Directory to save output files
-        api_key: OpenAI API key for LLM enhancement
+        api_key: OpenAI API key (optional)
         skip_llm: Whether to skip the LLM enhancement step
-        file_pattern: Pattern to match input files (default: "*.json")
-    
-    Returns:
-        Tuple of (files_processed, extraction_success_count, enhancement_success_count)
+        skip_summary: Whether to skip the structured summary generation step
     """
-    import glob
+    if not os.path.isdir(input_dir):
+        logger.error(f"Input directory not found: {input_dir}")
+        return
     
-    # Get list of JSON files in the input directory
-    input_pattern = os.path.join(input_dir, file_pattern)
-    input_files = glob.glob(input_pattern)
+    os.makedirs(output_dir, exist_ok=True)
     
-    if not input_files:
-        logger.warning(f"No JSON files found matching pattern {input_pattern}")
-        return 0, 0, 0
+    # Find all JSON files in the directory
+    json_files = [os.path.join(input_dir, f) for f in os.listdir(input_dir) 
+                 if f.endswith('.json') and os.path.isfile(os.path.join(input_dir, f))]
+    
+    if not json_files:
+        logger.warning(f"No JSON files found in {input_dir}")
+        return
+    
+    logger.info(f"Found {len(json_files)} JSON files to process")
     
     # Process each file
-    extraction_success_count = 0
-    enhancement_success_count = 0
+    results = {
+        'total': len(json_files),
+        'extraction_success': 0,
+        'enhancement_success': 0,
+        'summary_success': 0
+    }
     
-    for input_file in input_files:
-        logger.info(f"Processing file: {input_file}")
-        extraction_success, enhancement_success = process_file(
-            input_file, output_dir, api_key, skip_llm
+    for json_file in json_files:
+        logger.info(f"Processing {json_file}")
+        extraction_ok, enhancement_ok, summary_ok = process_file(
+            json_file, output_dir, api_key, skip_llm, skip_summary
         )
         
-        if extraction_success:
-            extraction_success_count += 1
-        
-        if enhancement_success:
-            enhancement_success_count += 1
+        if extraction_ok:
+            results['extraction_success'] += 1
+        if enhancement_ok:
+            results['enhancement_success'] += 1
+        if summary_ok:
+            results['summary_success'] += 1
     
-    return len(input_files), extraction_success_count, enhancement_success_count
+    # Log summary
+    logger.info(f"Processing complete. Results: {results}")
 
 def main():
     """Main function to run the clinical trial data analysis pipeline."""
-    parser = argparse.ArgumentParser(description='Analyze clinical trial data from JSON files.')
+    parser = argparse.ArgumentParser(description='Clinical Trial Data Analysis Pipeline')
     
-    # Input file or directory options
+    # Input arguments
     input_group = parser.add_mutually_exclusive_group(required=True)
-    input_group.add_argument('-f', '--file', help='Path to a single input JSON file')
-    input_group.add_argument('-d', '--directory', help='Path to a directory containing input JSON files')
+    input_group.add_argument('-f', '--file', help='Path to a single JSON file to process')
+    input_group.add_argument('-d', '--directory', help='Path to a directory containing JSON files to process')
     
-    # Output options
-    parser.add_argument('-o', '--output-dir', default='output', help='Directory to save output files (default: "output")')
+    # Output arguments
+    parser.add_argument('-o', '--output', required=True, help='Directory to save output files')
     
-    # LLM options
-    parser.add_argument('-k', '--api-key', help='OpenAI API key (can also be set via OPENAI_API_KEY environment variable)')
+    # Optional arguments
+    parser.add_argument('-k', '--api_key', help='OpenAI API key (can also be set via OPENAI_API_KEY environment variable)')
     parser.add_argument('--skip-llm', action='store_true', help='Skip the LLM enhancement step')
-    
-    # Additional options
-    parser.add_argument('-p', '--pattern', default='*.json', help='File pattern for JSON files when processing a directory (default: "*.json")')
-    parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose logging')
+    parser.add_argument('--skip-summary', action='store_true', help='Skip the structured summary generation step')
     
     args = parser.parse_args()
     
-    # Configure logging level
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
-    
-    # Process input based on whether it's a file or directory
+    # Process input
     if args.file:
-        logger.info(f"Processing single file: {args.file}")
-        extraction_success, enhancement_success = process_file(
-            args.file, args.output_dir, args.api_key, args.skip_llm
-        )
-        
-        if extraction_success:
-            print("Extraction completed successfully.")
-        else:
-            print("Extraction failed.")
+        if not os.path.isfile(args.file):
+            logger.error(f"Input file not found: {args.file}")
             sys.exit(1)
         
-        if not args.skip_llm:
-            if enhancement_success:
-                print("Enhancement completed successfully.")
-            else:
-                print("Enhancement failed.")
-                sys.exit(1)
-    else:
-        logger.info(f"Processing directory: {args.directory}")
-        files_processed, extraction_success_count, enhancement_success_count = process_directory(
-            args.directory, args.output_dir, args.api_key, args.skip_llm, args.pattern
+        logger.info(f"Processing file {args.file}")
+        extraction_ok, enhancement_ok, summary_ok = process_file(
+            args.file, args.output, args.api_key, args.skip_llm, args.skip_summary
         )
         
-        print(f"Processed {files_processed} files:")
-        print(f"  - Extraction successful for {extraction_success_count} files")
-        
+        # Print summary
+        print("Extraction completed successfully." if extraction_ok else "Extraction failed.")
         if not args.skip_llm:
-            print(f"  - Enhancement successful for {enhancement_success_count} files")
+            print("Enhancement completed successfully." if enhancement_ok else "Enhancement failed.")
+        if not args.skip_summary:
+            print("Structured summary generated successfully." if summary_ok else "Structured summary generation failed.")
     
-    logger.info("Analysis pipeline completed.")
+    elif args.directory:
+        logger.info(f"Processing directory {args.directory}")
+        process_directory(args.directory, args.output, args.api_key, args.skip_llm, args.skip_summary)
 
 if __name__ == '__main__':
     main() 
