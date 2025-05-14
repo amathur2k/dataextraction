@@ -69,7 +69,7 @@ class LLMEnhancer:
             The model's response text
         """
         try:
-            response = openai.ChatCompletion.create(
+            response = openai.chat.completions.create(
                 model="gpt-4o",
                 messages=messages,
                 max_tokens=max_tokens,
@@ -79,7 +79,7 @@ class LLMEnhancer:
             )
             
             # Extract the response text
-            return response['choices'][0]['message']['content'].strip()
+            return response.choices[0].message.content.strip()
         except Exception as e:
             logger.error(f"Error calling OpenAI API: {e}")
             return ""
@@ -296,29 +296,29 @@ Provide a structured analysis of these outcomes in JSON format:
 
 Respond with valid JSON in this format:
 ```json
-{
+{{
   "primary_outcomes_analysis": [
-    {
+    {{
       "outcome": "Original outcome text",
       "measurement_type": "efficacy/safety/etc.",
       "endpoints": ["specific variables measured"],
       "time_frame": "extracted time frame",
       "statistical_approach": "any mentioned statistical methods or null",
       "clinical_significance": "why this outcome matters"
-    }
+    }}
   ],
   "secondary_outcomes_analysis": [
-    {
+    {{
       "outcome": "Original outcome text",
       "measurement_type": "efficacy/safety/etc.",
       "endpoints": ["specific variables measured"],
       "time_frame": "extracted time frame",
       "statistical_approach": "any mentioned statistical methods or null",
       "clinical_significance": "why this outcome matters"
-    }
+    }}
   ],
   "overall_assessment_approach": "Summary of how these outcomes collectively evaluate the intervention"
-}
+}}
 ```
 """
         
