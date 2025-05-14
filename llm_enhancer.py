@@ -67,6 +67,9 @@ class LLMEnhancer:
         
         Returns:
             The model's response text
+            
+        Raises:
+            RuntimeError: If the API call fails
         """
         try:
             response = openai.chat.completions.create(
@@ -81,8 +84,9 @@ class LLMEnhancer:
             # Extract the response text
             return response.choices[0].message.content.strip()
         except Exception as e:
-            logger.error(f"Error calling OpenAI API: {e}")
-            return ""
+            error_msg = f"Error calling OpenAI API: {e}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg) from e
     
     def enhance_eligibility_criteria(self) -> Dict:
         """
@@ -90,9 +94,12 @@ class LLMEnhancer:
         
         Returns:
             Dictionary containing enhanced eligibility criteria
+            
+        Raises:
+            ValueError: If the LLM response cannot be parsed as JSON
         """
         if not self.extracted_data:
-            return {}
+            raise ValueError("No extracted data available for enhancement")
         
         eligibility_criteria = self.extracted_data.get('eligibility_criteria', {})
         basic_info = self.extracted_data.get('basic_info', {})
@@ -158,6 +165,9 @@ Respond in this structured JSON format:
         
         response = self._call_gpt4(messages, max_tokens=2000)
         
+        if not response:
+            raise ValueError(f"Empty response from LLM when enhancing eligibility criteria for {basic_info.get('nct_id', 'Unknown')}")
+        
         # Extract JSON from the response
         try:
             # Find the JSON part within the response (between ```json and ```)
@@ -170,8 +180,9 @@ Respond in this structured JSON format:
             
             logger.info("Successfully enhanced eligibility criteria")
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse enhanced criteria JSON: {e}")
-            enhanced_criteria = {}
+            error_msg = f"Failed to parse enhanced criteria JSON: {e}"
+            logger.error(error_msg)
+            raise ValueError(error_msg) from e
         
         return {
             'raw_criteria': {
@@ -188,9 +199,12 @@ Respond in this structured JSON format:
         
         Returns:
             String containing the summary
+            
+        Raises:
+            ValueError: If there is no extracted data or the LLM call fails
         """
         if not self.extracted_data:
-            return ""
+            raise ValueError("No extracted data available for summary generation")
         
         basic_info = self.extracted_data.get('basic_info', {})
         eligibility = self.extracted_data.get('eligibility_criteria', {})
@@ -242,6 +256,10 @@ Write a clear, comprehensive summary of this clinical trial in about 4-6 paragra
         ]
         
         summary = self._call_gpt4(messages, max_tokens=1000)
+        
+        if not summary:
+            raise ValueError(f"Failed to generate study summary for {basic_info.get('nct_id', 'Unknown')}")
+            
         logger.info("Successfully generated study summary")
         
         return summary
@@ -252,9 +270,12 @@ Write a clear, comprehensive summary of this clinical trial in about 4-6 paragra
         
         Returns:
             Dictionary containing enhanced outcome analysis
+            
+        Raises:
+            ValueError: If there is no extracted data or the outcome analysis fails
         """
         if not self.extracted_data:
-            return {}
+            raise ValueError("No extracted data available for outcome analysis")
         
         basic_info = self.extracted_data.get('basic_info', {})
         outcomes = self.extracted_data.get('outcomes', {})
@@ -330,6 +351,9 @@ Respond with valid JSON in this format:
         
         response = self._call_gpt4(messages, max_tokens=2000)
         
+        if not response:
+            raise ValueError(f"Empty response from LLM when analyzing outcomes for {basic_info.get('nct_id', 'Unknown')}")
+        
         # Extract JSON from the response
         try:
             # Find the JSON part within the response (between ```json and ```)
@@ -342,8 +366,9 @@ Respond with valid JSON in this format:
             
             logger.info("Successfully analyzed trial outcomes")
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse outcomes analysis JSON: {e}")
-            outcomes_analysis = {}
+            error_msg = f"Failed to parse outcomes analysis JSON: {e}"
+            logger.error(error_msg)
+            raise ValueError(error_msg) from e
         
         return {
             'raw_outcomes': {
@@ -360,16 +385,20 @@ Respond with valid JSON in this format:
         
         Returns:
             Dictionary containing all enhanced information
+            
+        Raises:
+            ValueError: If no data is available or API key is missing
+            RuntimeError: If any enhancement step fails
         """
         if not self.extracted_data:
             self.load_data()
         
-        # Skip LLM processing if no API key
+        if not self.extracted_data:
+            raise ValueError(f"Failed to load data from {self.input_file}")
+        
+        # Check for API key
         if not openai.api_key:
-            logger.warning("Skipping LLM enhancement because no API key is provided")
-            return {
-                'error': 'No OpenAI API key provided. Set OPENAI_API_KEY environment variable or provide it as an argument.'
-            }
+            raise ValueError("No OpenAI API key provided. Set OPENAI_API_KEY environment variable or provide it as an argument.")
         
         # Enhance various aspects of the trial data
         enhanced_eligibility = self.enhance_eligibility_criteria()

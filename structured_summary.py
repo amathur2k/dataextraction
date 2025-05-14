@@ -34,18 +34,24 @@ class StructuredSummaryGenerator:
         self.structured_summary = {}
     
     def load_data(self) -> None:
-        """Load the enhanced clinical trial data from the input file."""
+        """
+        Load the enhanced clinical trial data from the input file.
+        
+        Raises:
+            FileNotFoundError: If the input file does not exist
+            json.JSONDecodeError: If the input file is not valid JSON
+        """
         try:
             with open(self.input_file, 'r', encoding='utf-8') as f:
                 self.enhanced_data = json.load(f)
             
             logger.info(f"Successfully loaded enhanced data from {self.input_file}")
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON from {self.input_file}")
-            self.enhanced_data = {}
-        except FileNotFoundError:
+            raise
+        except FileNotFoundError as e:
             logger.error(f"File not found: {self.input_file}")
-            self.enhanced_data = {}
+            raise
     
     def get_value_or_na(self, data: Dict, *keys, default: str = "N/A") -> Any:
         """
@@ -250,12 +256,15 @@ class StructuredSummaryGenerator:
         
         Returns:
             Dictionary containing the structured summary
+            
+        Raises:
+            ValueError: If the enhanced data could not be loaded
         """
         if not self.enhanced_data:
             self.load_data()
         
         if not self.enhanced_data:
-            return {"error": "Failed to load enhanced data"}
+            raise ValueError(f"Failed to load enhanced data from {self.input_file}")
         
         self.structured_summary = {
             "core_trial_metadata": self.extract_core_metadata(),

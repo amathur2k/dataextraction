@@ -73,24 +73,31 @@ def process_file(
         
         try:
             enhancer = LLMEnhancer(extraction_output, api_key)
-            enhancer.enhance_all()
+            enhancer.enhance_all()  # This will now raise exceptions on any failure
             enhancer.save_enhanced_data(enhancement_output)
             enhancement_success = True
             logger.info(f"Enhancement completed for {extraction_output}")
         except Exception as e:
-            logger.error(f"Enhancement failed: {e}")
-            return extraction_success, enhancement_success, summary_success
+            logger.error(f"Enhancement failed for {input_file}: {e}")
+            # Delete any partially created enhanced file to avoid confusion
+            if os.path.exists(enhancement_output):
+                try:
+                    os.remove(enhancement_output)
+                    logger.info(f"Removed incomplete enhanced file: {enhancement_output}")
+                except Exception as cleanup_error:
+                    logger.warning(f"Could not remove incomplete enhanced file: {cleanup_error}")
+            return extraction_success, False, False
     else:
         logger.info("Skipping LLM enhancement step")
         enhancement_success = True  # Mark as successful if intentionally skipped
     
     # Step 3: Generate structured summary (if not skipped)
-    if not skip_summary and enhancement_success:
+    if not skip_summary and (enhancement_success or skip_llm):
         summary_output = os.path.join(output_dir, f"{name_without_ext}_structured_summary.json")
         
         try:
             # Use the enhanced data as input if available, otherwise use extracted data
-            input_for_summary = os.path.join(output_dir, f"{name_without_ext}_enhanced.json") if enhancement_success else extraction_output
+            input_for_summary = os.path.join(output_dir, f"{name_without_ext}_enhanced.json") if enhancement_success and not skip_llm else extraction_output
             
             generator = StructuredSummaryGenerator(input_for_summary)
             generator.generate_structured_summary()
@@ -98,11 +105,17 @@ def process_file(
             summary_success = True
             logger.info(f"Structured summary generated for {input_for_summary}")
         except Exception as e:
-            logger.error(f"Structured summary generation failed: {e}")
-    else:
-        if skip_summary:
-            logger.info("Skipping structured summary generation step")
-            summary_success = True  # Mark as successful if intentionally skipped
+            logger.error(f"Structured summary generation failed for {input_file}: {e}")
+            # Delete any partially created summary file to avoid confusion
+            if os.path.exists(summary_output):
+                try:
+                    os.remove(summary_output)
+                    logger.info(f"Removed incomplete summary file: {summary_output}")
+                except Exception as cleanup_error:
+                    logger.warning(f"Could not remove incomplete summary file: {cleanup_error}")
+    elif skip_summary:
+        logger.info("Skipping structured summary generation step")
+        summary_success = True  # Mark as successful if intentionally skipped
     
     return extraction_success, enhancement_success, summary_success
 
