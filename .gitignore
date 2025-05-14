@@ -31,3 +31,6 @@ venv/
 # macOS / Windows / Linux system files
 .DS_Store
 Thumbs.db
+
+.env
+trial_analysis_notes.docx
