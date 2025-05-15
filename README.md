@@ -1,9 +1,8 @@
 # Clinical Trial Data Analysis
 
-This project extracts and analyzes clinical trial data from JSON files using a three-phase approach:
+This project extracts and analyzes clinical trial data from JSON files using a two-phase approach:
 1. **Regex-based Extraction**: Extract structured data from clinical trial JSON files using regex patterns
-2. **LLM-based Enhancement**: Process the extracted data using OpenAI GPT-4o to provide deeper analysis, structured categorization, and human-readable summaries
-3. **Structured Summary Generation**: Create a standardized JSON output with specific fields for consistent data representation
+2. **LLM-based Analysis**: Process the extracted data using OpenAI GPT-4o to provide comprehensive structured analysis with specific fields
 
 ## Features
 
@@ -14,39 +13,23 @@ This project extracts and analyzes clinical trial data from JSON files using a t
   - Interventions
   - Outcome measures
 
-- LLM-based enhancement:
-  - Categorize eligibility criteria by demographics, medical conditions, etc.
-  - Extract numerical values and time frames from criteria
-  - Normalize drug names and conditions
-  - Generate human-readable trial summaries
-  - Analyze outcome measures
-
-- Structured summary generation:
-  - Core trial metadata (ID, status, dates, phase, etc.)
-  - Scientific content (interventions, mechanisms, targets, outcomes)
-  - Patient-related information (eligibility, demographics, disease characteristics)
-  - Operational aspects (locations, investigators, enrollment status)
-
-## Requirements
-
-- Python 3.7 or higher
-- Required Python packages:
-  - `openai` (for LLM enhancement)
+- LLM-based comprehensive analysis:
+  - Core Trial Metadata (ID, status, dates, phase, etc.)
+  - Scientific Content (interventions, mechanisms, targets, outcomes)
+  - Patient-Related Information (eligibility, demographics, disease characteristics)
+  - Operational Aspects (locations, investigators, enrollment status)
 
 ## Installation
 
 1. Clone this repository
 2. Install the required dependencies:
-
-```bash
-pip install openai
-```
-
+   ```
+   pip install openai
+   ```
 3. Set your OpenAI API key:
-
-```bash
-export OPENAI_API_KEY=your_api_key_here
-```
+   ```
+   export OPENAI_API_KEY=your_api_key_here
+   ```
 
 ## Usage
 
@@ -62,20 +45,12 @@ python analyze_trial_data.py -f path/to/trial.json -o output_directory
 python analyze_trial_data.py -d path/to/directory -o output_directory
 ```
 
-### Skip LLM Enhancement
+### Extraction Only (Skip LLM Analysis)
 
-If you want to extract data without using the OpenAI API for enhancement:
-
-```bash
-python analyze_trial_data.py -f path/to/trial.json --skip-llm
-```
-
-### Skip Structured Summary Generation
-
-If you want to skip the structured summary generation step:
+If you want to extract data without using the OpenAI API for analysis:
 
 ```bash
-python analyze_trial_data.py -f path/to/trial.json --skip-summary
+python analyze_trial_data.py -f path/to/trial.json --extraction-only
 ```
 
 ### Use Custom API Key
@@ -91,14 +66,13 @@ export OPENAI_API_KEY=your_openai_api_key
 python analyze_trial_data.py -f path/to/trial.json
 ```
 
-### Additional Options
+### Command Line Options
 
 - `-f, --file`: Path to a single JSON file to process
 - `-d, --directory`: Path to a directory containing JSON files to process
 - `-o, --output`: Directory to save output files
 - `-k, --api_key`: OpenAI API key (can also be set via OPENAI_API_KEY environment variable)
-- `--skip-llm`: Skip the LLM enhancement step
-- `--skip-summary`: Skip the structured summary generation step
+- `--extraction-only`: Only perform extraction without LLM analysis
 
 ## Components
 
@@ -112,19 +86,15 @@ You can use it standalone:
 python trial_data_extractor.py path/to/trial_data.json -o extracted_data.json
 ```
 
-### 2. `llm_enhancer.py`
+### 2. `trial_data_analyzer.py`
 
-This module enhances the extracted clinical trial data using OpenAI's GPT-4o API.
+This module analyzes the extracted clinical trial data using OpenAI's GPT-4o API to provide comprehensive structured analysis with specific fields.
 
 You can use it standalone:
 
 ```bash
-python llm_enhancer.py path/to/extracted_data.json -o enhanced_data.json -k your_openai_api_key
+python trial_data_analyzer.py path/to/extracted_data.json -o analyzed_data.json -k your_openai_api_key
 ```
-
-### 3. `structured_summary.py`
-
-This module creates a standardized JSON output with specific fields for consistent data representation.
 
 ## Output Format
 
@@ -149,51 +119,54 @@ The extraction phase outputs a JSON file with the following structure:
 }
 ```
 
-The enhancement phase adds the following to create a comprehensive analysis:
+The analysis phase provides a comprehensive structured output with these specific fields:
 
 ```json
 {
-  "study_summary": "Human-readable summary of the trial...",
-  "enhanced_eligibility": {
-    "raw_criteria": {...},
-    "enhanced_criteria": {
+  "analyzed_data": {
+    "core_trial_metadata": {
+      "nct_id": "NCT12345678",
+      "status": "Recruiting",
+      "dates": {
+        "registration": "2023-01-01",
+        "start": "2023-03-15",
+        "completion": "2024-12-31",
+        "last_update": "2023-05-20"
+      },
+      "phase": "Phase 2",
+      "study_type": "Interventional",
+      "enrollment": {
+        "target": 100,
+        "actual": 45
+      },
+      "sponsor_collaborators": {
+        "primary_sponsor": "University Medical Center",
+        "collaborators": ["Pharmaceutical Company A", "Research Institute B"]
+      }
+    },
+    "scientific_content": {
+      "intervention": [...],
+      "mechanism_of_action": "...",
+      "target_pathway": {...},
+      "biomarkers": [...],
+      "study_design": {...},
+      "arms_groups": [...],
+      "outcomes": {...}
+    },
+    "patient_related_information": {
+      "eligibility_criteria": {...},
       "demographics": {...},
-      "medical_conditions": {...},
-      ...
+      "disease_characteristics": {...},
+      "prior_treatments": {...}
+    },
+    "operational_aspects": {
+      "locations": [...],
+      "investigators": [...],
+      "enrollment_status": {...},
+      "ipd_sharing": {...}
     }
   },
-  "enhanced_outcomes": {...},
   "original_data": {...}
-}
-```
-
-The structured summary generation step adds the following to create a standardized JSON output:
-
-```json
-{
-  "core_trial_metadata": {
-    "nct_id": "NCT12345678",
-    "status": "Recruiting",
-    "start_date": "2023-01-01",
-    "end_date": "2024-01-01",
-    "phase": "Phase 2"
-  },
-  "scientific_content": {
-    "interventions": [...],
-    "mechanisms": [...],
-    "targets": [...],
-    "outcomes": [...]
-  },
-  "patient_related_information": {
-    "eligibility": {...},
-    "demographics": {...},
-    "disease_characteristics": {...}
-  },
-  "operational_aspects": {
-    "locations": [...],
-    "investigators": [...],
-    "enrollment_status": "Recruiting"
-  }
 }
 ```
 
