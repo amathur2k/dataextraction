@@ -30,7 +30,7 @@ def process_file(
     output_dir: str, 
     api_key: Optional[str] = None,
     extraction_only: bool = False,
-    debug_mode: bool = False
+    debug_mode: bool = True
 ) -> tuple:
     """
     Process a single clinical trial file through the complete pipeline.
