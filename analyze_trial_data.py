@@ -3,6 +3,7 @@
 Clinical Trial Data Analysis Pipeline
 
 This script combines the extraction and analysis steps into a complete
+This script combines the extraction and analysis steps into a complete
 pipeline for analyzing clinical trial data from JSON files.
 """
 
@@ -44,6 +45,7 @@ def process_file(
     
     Returns:
         Tuple of (extraction_success, analysis_success)
+        Tuple of (extraction_success, analysis_success)
     """
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
@@ -66,6 +68,7 @@ def process_file(
     
     extraction_success = False
     analysis_success = False
+    analysis_success = False
     
     try:
         extractor = ClinicalTrialExtractor(input_file)
@@ -76,7 +79,11 @@ def process_file(
     except Exception as e:
         logger.error(f"Extraction failed: {e}")
         return extraction_success, analysis_success
+        return extraction_success, analysis_success
     
+    # Step 2: Analyze extracted data using LLM (if not extraction only)
+    if not extraction_only:
+        analysis_output = os.path.join(output_dir, f"{name_without_ext}_analyzed.json")
     # Step 2: Analyze extracted data using LLM (if not extraction only)
     if not extraction_only:
         analysis_output = os.path.join(output_dir, f"{name_without_ext}_analyzed.json")
@@ -91,10 +98,16 @@ def process_file(
             logger.error(f"Analysis failed for {input_file}: {e}")
             # Delete any partially created analysis file to avoid confusion
             if os.path.exists(analysis_output):
+            logger.error(f"Analysis failed for {input_file}: {e}")
+            # Delete any partially created analysis file to avoid confusion
+            if os.path.exists(analysis_output):
                 try:
                     os.remove(analysis_output)
                     logger.info(f"Removed incomplete analysis file: {analysis_output}")
+                    os.remove(analysis_output)
+                    logger.info(f"Removed incomplete analysis file: {analysis_output}")
                 except Exception as cleanup_error:
+                    logger.warning(f"Could not remove incomplete analysis file: {cleanup_error}")
                     logger.warning(f"Could not remove incomplete analysis file: {cleanup_error}")
     else:
         logger.info("Skipping LLM analysis step")
@@ -109,6 +122,7 @@ def process_file(
             except Exception as e:
                 logger.warning(f"Could not copy extraction output: {e}")
     
+    return extraction_success, analysis_success
     return extraction_success, analysis_success
 
 def process_directory(
@@ -149,6 +163,7 @@ def process_directory(
         'total': len(json_files),
         'extraction_success': 0,
         'analysis_success': 0
+        'analysis_success': 0
     }
     
     for json_file in json_files:
@@ -159,6 +174,8 @@ def process_directory(
         
         if extraction_ok:
             results['extraction_success'] += 1
+        if analysis_ok:
+            results['analysis_success'] += 1
         if analysis_ok:
             results['analysis_success'] += 1
     
@@ -202,6 +219,8 @@ def main():
         
         # Print summary
         print("Extraction completed successfully." if extraction_ok else "Extraction failed.")
+        if not args.extraction_only:
+            print("Analysis completed successfully." if analysis_ok else "Analysis failed.")
         if not args.extraction_only:
             print("Analysis completed successfully." if analysis_ok else "Analysis failed.")
     
