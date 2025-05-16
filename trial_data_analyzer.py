@@ -67,7 +67,7 @@ class ClinicalTrialAnalyzer:
             logger.error(f"File not found: {self.input_file}")
             raise
     
-    def _call_gpt4(self, messages: List[Dict[str, str]], max_tokens: int = 1500) -> str:
+    def _call_gpt4(self, messages: List[Dict[str, str]], max_tokens: int = 3500) -> str:
         """
         Call the OpenAI GPT-4o API.
         
@@ -83,10 +83,10 @@ class ClinicalTrialAnalyzer:
         """
         try:
             response = openai.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4.1",
                 messages=messages,
                 max_tokens=max_tokens,
-                temperature=0.2,  # Lower temperature for more consistent results
+                temperature=0,  # Lower temperature for more consistent results
                 n=1,
                 stop=None
             )

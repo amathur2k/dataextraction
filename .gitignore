@@ -8,6 +8,7 @@ __pycache__/
 
 # Output folders
 output/
+output.old/
 test-data/
 papers/
 

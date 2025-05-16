@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Clinical Trial Data Analysis Pipeline
+Clinical Trial Data Analysis Pipeline Runner
 
-This script combines the extraction and analysis steps into a complete
-pipeline for analyzing clinical trial data from JSON files.
+This script serves as the main entry point for the clinical trial data analysis pipeline.
+It orchestrates the extraction and analysis steps for processing clinical trial data from JSON files.
 """
 
 import os
@@ -116,7 +116,7 @@ def process_directory(
     output_dir: str, 
     api_key: Optional[str] = None,
     extraction_only: bool = False,
-    debug_mode: bool = False
+    debug_mode: bool = True
 ) -> None:
     """
     Process all JSON files in a directory.
@@ -167,7 +167,7 @@ def process_directory(
 
 def main():
     """Main function to run the clinical trial data analysis pipeline."""
-    parser = argparse.ArgumentParser(description='Clinical Trial Data Analysis Pipeline')
+    parser = argparse.ArgumentParser(description='Clinical Trial Data Analysis Pipeline Runner')
     
     # Input arguments
     input_group = parser.add_mutually_exclusive_group(required=True)
@@ -181,12 +181,15 @@ def main():
     parser.add_argument('-k', '--api_key', help='OpenAI API key (can also be set via OPENAI_API_KEY environment variable)')
     parser.add_argument('--extraction-only', action='store_true', help='Only perform extraction without LLM analysis')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode to save intermediate data')
-    parser.add_argument('--clean', action='store_true', help='Clean output directory before processing')
+    parser.add_argument('--no-clean', action='store_true', help='Do not clean output directory before processing')
     
     args = parser.parse_args()
     
-    # Clean output directory if requested
-    if args.clean and os.path.exists(args.output):
+    # Debug mode is now enabled by default in the function parameters
+    debug_mode = True  # Always enable debug mode
+    
+    # Clean output directory by default unless --no-clean is specified
+    if not args.no_clean and os.path.exists(args.output):
         clean_output_directory(args.output)
     
     # Process input
@@ -197,7 +200,7 @@ def main():
         
         logger.info(f"Processing file {args.file}")
         extraction_ok, analysis_ok = process_file(
-            args.file, args.output, args.api_key, args.extraction_only, args.debug
+            args.file, args.output, args.api_key, args.extraction_only, debug_mode
         )
         
         # Print summary
@@ -207,7 +210,7 @@ def main():
     
     elif args.directory:
         logger.info(f"Processing directory {args.directory}")
-        process_directory(args.directory, args.output, args.api_key, args.extraction_only, args.debug)
+        process_directory(args.directory, args.output, args.api_key, args.extraction_only, debug_mode)
 
 if __name__ == '__main__':
     main() 

@@ -36,13 +36,13 @@ This project extracts and analyzes clinical trial data from JSON files using a t
 ### Process a Single File
 
 ```bash
-python analyze_trial_data.py -f path/to/trial.json -o output_directory
+python run_trial_analysis.py -f path/to/trial.json -o output_directory
 ```
 
 ### Process Multiple Files in a Directory
 
 ```bash
-python analyze_trial_data.py -d path/to/directory -o output_directory
+python run_trial_analysis.py -d path/to/directory -o output_directory
 ```
 
 ### Extraction Only (Skip LLM Analysis)
@@ -50,20 +50,20 @@ python analyze_trial_data.py -d path/to/directory -o output_directory
 If you want to extract data without using the OpenAI API for analysis:
 
 ```bash
-python analyze_trial_data.py -f path/to/trial.json --extraction-only
+python run_trial_analysis.py -f path/to/trial.json --extraction-only
 ```
 
 ### Use Custom API Key
 
 ```bash
-python analyze_trial_data.py -f path/to/trial.json -k your_openai_api_key
+python run_trial_analysis.py -f path/to/trial.json -k your_openai_api_key
 ```
 
 You can also set the API key as an environment variable:
 
 ```bash
 export OPENAI_API_KEY=your_openai_api_key
-python analyze_trial_data.py -f path/to/trial.json
+python run_trial_analysis.py -f path/to/trial.json
 ```
 
 ### Command Line Options
@@ -73,6 +73,7 @@ python analyze_trial_data.py -f path/to/trial.json
 - `-o, --output`: Directory to save output files
 - `-k, --api_key`: OpenAI API key (can also be set via OPENAI_API_KEY environment variable)
 - `--extraction-only`: Only perform extraction without LLM analysis
+- `--no-clean`: Do not clean output directory before processing (by default, the output directory is cleaned)
 
 ## Components
 
@@ -80,21 +81,13 @@ python analyze_trial_data.py -f path/to/trial.json
 
 This module extracts structured data from clinical trial JSON files using regex patterns and basic parsing.
 
-You can use it standalone:
-
-```bash
-python trial_data_extractor.py path/to/trial_data.json -o extracted_data.json
-```
-
 ### 2. `trial_data_analyzer.py`
 
 This module analyzes the extracted clinical trial data using OpenAI's GPT-4o API to provide comprehensive structured analysis with specific fields.
 
-You can use it standalone:
+### 3. `run_trial_analysis.py`
 
-```bash
-python trial_data_analyzer.py path/to/extracted_data.json -o analyzed_data.json -k your_openai_api_key
-```
+This is the main entry point that orchestrates the entire pipeline, connecting the extractor and analyzer modules.
 
 ## Output Format
 
