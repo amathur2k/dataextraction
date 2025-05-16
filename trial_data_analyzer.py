@@ -98,15 +98,15 @@ class ClinicalTrialAnalyzer:
             logger.error(error_msg)
             raise RuntimeError(error_msg) from e
 
-    def extract_mechanism_and_targets(self, interventions: List[Dict]) -> Dict:
+    def extract_mechanism_and_targets(self, interventions: List[Dict]) -> List[Dict]:
         """
-        Extract mechanism of action and target/pathway information using a specialized prompt.
+        Extract mechanism of action and target/pathway information for each intervention using a specialized prompt.
         
         Args:
             interventions: List of intervention dictionaries
             
         Returns:
-            Dictionary containing mechanism of action and target pathways
+            List of dictionaries containing mechanism of action and target pathways for each intervention
         """
         # Prepare intervention details for specialized analysis
         intervention_details = []
@@ -133,16 +133,30 @@ INTERVENTIONS:
 Focus only on these specific aspects. If any information is not explicitly mentioned or cannot be confidently inferred, mark it as "N/A".
 Be specific and extract actual biological targets (gene names, protein names) rather than general concepts.
 
+IMPORTANT: Create a separate entry for EACH intervention with its own mechanism and targets.
+
 Respond in this JSON format:
 ```json
-{{{{
-  "mechanism_of_action": "Detailed description of how the intervention works",
-  "target_pathway": {{{{
-    "gene": ["Gene A", "Gene B"],
-    "protein": ["Protein X", "Protein Y"],
-    "chemical_compound": ["Compound Z"]
-  }}}}
-}}}}
+[
+  {{
+    "intervention": "Intervention Name",
+    "mechanism_of_action": "Detailed description of how this specific intervention works",
+    "target_pathway": {{
+      "gene": ["Gene A", "Gene B"],
+      "protein": ["Protein X", "Protein Y"],
+      "chemical_compound": ["Compound Z"]
+    }}
+  }},
+  {{
+    "intervention": "Another Intervention Name",
+    "mechanism_of_action": "Detailed description for this intervention",
+    "target_pathway": {{
+      "gene": ["Gene C"],
+      "protein": ["Protein W"],
+      "chemical_compound": ["Compound Y"]
+    }}
+  }}
+]
 ```
 """
         
@@ -153,7 +167,7 @@ Respond in this JSON format:
         ]
         
         try:
-            response = self._call_gpt4(messages, max_tokens=1000)
+            response = self._call_gpt4(messages, max_tokens=1500)
             
             # Extract JSON from the response
             if "```json" in response and "```" in response.split("```json")[1]:
@@ -168,14 +182,15 @@ Respond in this JSON format:
         except (json.JSONDecodeError, RuntimeError) as e:
             logger.warning(f"Failed to extract mechanism and targets: {e}")
             # Return default structure with N/A values if extraction fails
-            return {
+            return [{
+                "intervention": intervention.get('name', 'Unknown'),
                 "mechanism_of_action": "N/A",
                 "target_pathway": {
-                    "gene": "N/A",
-                    "protein": "N/A",
-                    "chemical_compound": "N/A"
+                    "gene": [],
+                    "protein": [],
+                    "chemical_compound": []
                 }
-            }
+            } for intervention in interventions]
 
     def extract_biomarkers(self, eligibility_criteria: Dict, outcomes: Dict) -> List[str]:
         """
@@ -717,12 +732,7 @@ Respond in this structured JSON format with these exact sections and fields. If 
                 initial_analyzed_data["scientific_content"] = {}
                 
             # Add the specialized mechanism and target data to the analysis
-            initial_analyzed_data["scientific_content"]["mechanism_of_action"] = mechanism_data.get("mechanism_of_action", "N/A")
-            initial_analyzed_data["scientific_content"]["target_pathway"] = mechanism_data.get("target_pathway", {
-                "gene": "N/A",
-                "protein": "N/A",
-                "chemical_compound": "N/A"
-            })
+            initial_analyzed_data["scientific_content"]["mechanism_and_targets"] = mechanism_data
             
             # Add biomarkers information
             initial_analyzed_data["scientific_content"]["biomarkers"] = biomarkers
