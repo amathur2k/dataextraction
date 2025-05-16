@@ -6,7 +6,7 @@ This project extracts and analyzes clinical trial data from JSON files using a t
 
 ## Features
 
-- Extract key clinical trial information such as:
+- Extract key clinical trial information such as:-
   - Basic trial details (ID, title, status, phase, etc.)
   - Study design information
   - Eligibility criteria (inclusion and exclusion)
