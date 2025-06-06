@@ -6,6 +6,10 @@ This project extracts and analyzes clinical trial data from JSON files using a t
 
 ## Features
 
+- **Multiple Input Sources**:
+  - Process local JSON files (single file or directory)
+  - Download and process trials directly from ClinicalTrials.gov API using NCT ID
+
 - Extract key clinical trial information such as:-
   - Basic trial details (ID, title, status, phase, etc.)
   - Study design information
@@ -24,7 +28,7 @@ This project extracts and analyzes clinical trial data from JSON files using a t
 1. Clone this repository
 2. Install the required dependencies:
    ```
-   pip install openai
+   pip install openai requests
    ```
 3. Set your OpenAI API key:
    ```
@@ -45,12 +49,28 @@ python run_trial_analysis.py -f path/to/trial.json -o output_directory
 python run_trial_analysis.py -d path/to/directory -o output_directory
 ```
 
+### Process by NCT ID (Download from ClinicalTrials.gov)
+
+Download and process a clinical trial directly from the ClinicalTrials.gov API:
+
+```bash
+python run_trial_analysis.py -n NCT00001372 -o output_directory
+```
+
+The trial data will be downloaded to the debug directory and then processed through the complete pipeline.
+
 ### Extraction Only (Skip LLM Analysis)
 
 If you want to extract data without using the OpenAI API for analysis:
 
 ```bash
 python run_trial_analysis.py -f path/to/trial.json --extraction-only
+```
+
+Or with NCT ID:
+
+```bash
+python run_trial_analysis.py -n NCT00001372 -o output_directory --extraction-only
 ```
 
 ### Use Custom API Key
@@ -70,6 +90,7 @@ python run_trial_analysis.py -f path/to/trial.json
 
 - `-f, --file`: Path to a single JSON file to process
 - `-d, --directory`: Path to a directory containing JSON files to process
+- `-n, --nctid`: NCT ID to download and process from ClinicalTrials.gov API
 - `-o, --output`: Directory to save output files
 - `-k, --api_key`: OpenAI API key (can also be set via OPENAI_API_KEY environment variable)
 - `--extraction-only`: Only perform extraction without LLM analysis
