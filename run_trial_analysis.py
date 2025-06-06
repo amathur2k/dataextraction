@@ -13,6 +13,7 @@ import logging
 from typing import List, Optional
 import json
 import shutil
+import requests
 
 # Import our modules
 from trial_data_extractor import ClinicalTrialExtractor
@@ -24,6 +25,91 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+def download_trial_data(nctid: str, debug_dir: str) -> str:
+    """
+    Download clinical trial data from ClinicalTrials.gov API.
+    
+    Args:
+        nctid: NCT ID of the clinical trial (e.g., "NCT00001372")
+        debug_dir: Directory to save the downloaded JSON file
+    
+    Returns:
+        Path to the downloaded JSON file
+    
+    Raises:
+        Exception: If the API request fails or data cannot be saved
+    """
+    # Ensure debug directory exists
+    os.makedirs(debug_dir, exist_ok=True)
+    
+    # Construct API URL
+    url = f"https://clinicaltrials.gov/api/v2/studies/{nctid}"
+    
+    try:
+        logger.info(f"Downloading trial data for {nctid} from {url}")
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an exception for bad status codes
+        
+        # Get JSON data
+        data = response.json()
+        
+        # Save to file
+        output_file = os.path.join(debug_dir, f"{nctid}.json")
+        with open(output_file, "w") as f:
+            json.dump(data, f, indent=2)
+        
+        logger.info(f"Successfully downloaded and saved trial data to {output_file}")
+        return output_file
+        
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Failed to download trial data for {nctid}: {e}")
+    except json.JSONDecodeError as e:
+        raise Exception(f"Failed to parse JSON response for {nctid}: {e}")
+    except IOError as e:
+        raise Exception(f"Failed to save trial data for {nctid}: {e}")
+
+def process_nctid(
+    nctid: str,
+    output_dir: str,
+    api_key: Optional[str] = None,
+    extraction_only: bool = False,
+    debug_mode: bool = True
+) -> tuple:
+    """
+    Process a clinical trial by downloading data from ClinicalTrials.gov API using NCT ID.
+    
+    Args:
+        nctid: NCT ID of the clinical trial (e.g., "NCT00001372")
+        output_dir: Directory to save output files
+        api_key: OpenAI API key (optional)
+        extraction_only: Whether to only perform extraction without LLM analysis
+        debug_mode: Whether to save intermediate data for debugging
+    
+    Returns:
+        Tuple of (extraction_success, analysis_success)
+    """
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Create debug directory (required for downloading)
+    debug_dir = os.path.join(output_dir, "debug")
+    os.makedirs(debug_dir, exist_ok=True)
+    
+    try:
+        # Download the trial data
+        downloaded_file = download_trial_data(nctid, debug_dir)
+        
+        # Process the downloaded file
+        extraction_success, analysis_success = process_file(
+            downloaded_file, output_dir, api_key, extraction_only, debug_mode
+        )
+        
+        return extraction_success, analysis_success
+        
+    except Exception as e:
+        logger.error(f"Failed to process NCT ID {nctid}: {e}")
+        return False, False
 
 def process_file(
     input_file: str, 
@@ -173,6 +259,7 @@ def main():
     input_group = parser.add_mutually_exclusive_group(required=True)
     input_group.add_argument('-f', '--file', help='Path to a single JSON file to process')
     input_group.add_argument('-d', '--directory', help='Path to a directory containing JSON files to process')
+    input_group.add_argument('-n', '--nctid', help='NCT ID to download and process from ClinicalTrials.gov API')
     
     # Output arguments
     parser.add_argument('-o', '--output', required=True, help='Directory to save output files')
@@ -211,6 +298,17 @@ def main():
     elif args.directory:
         logger.info(f"Processing directory {args.directory}")
         process_directory(args.directory, args.output, args.api_key, args.extraction_only, debug_mode)
+    
+    elif args.nctid:
+        logger.info(f"Processing NCT ID {args.nctid}")
+        extraction_ok, analysis_ok = process_nctid(
+            args.nctid, args.output, args.api_key, args.extraction_only, debug_mode
+        )
+        
+        # Print summary
+        print("Extraction completed successfully." if extraction_ok else "Extraction failed.")
+        if not args.extraction_only:
+            print("Analysis completed successfully." if analysis_ok else "Analysis failed.")
 
 if __name__ == '__main__':
     main() 

@@ -13,6 +13,7 @@ output.old/
 test-data/
 papers/
 debug/
+output*/
 
 # Distribution / packaging
 build/
