@@ -37,64 +37,149 @@ def create_table_schema(cursor, table_name="myclinicaltrials"):
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         
-        -- Core trial metadata
+        -- ========== CORE TRIAL METADATA ==========
+        -- Unique trial identifier for tracking and linking
         nct_id VARCHAR(20) UNIQUE NOT NULL,
-        status VARCHAR(100),
-        phase VARCHAR(50),
-        study_type VARCHAR(100),
         
-        -- Dates (stored as text due to inconsistent formats in source data)
+        -- Current state (recruiting, completed, terminated, etc.)
+        status VARCHAR(100),
+        
+        -- Dates: Registration, start, completion, update timestamps
         registration_date TEXT,
         start_date TEXT,
         completion_date TEXT,
         last_update_date TEXT,
+        study_first_submit_date TEXT,
+        primary_completion_date TEXT,
         
-        -- Enrollment information
+        -- Trial phase (I-IV, early phase, etc.)
+        phase VARCHAR(50),
+        
+        -- Study Type: Interventional, observational, expanded access
+        study_type VARCHAR(100),
+        
+        -- Enrollment: Target and actual participant counts
         target_enrollment INTEGER,
         actual_enrollment INTEGER,
+        enrollment_type VARCHAR(50),
         
-        -- Sponsor information
+        -- Sponsor/Collaborators: Primary sponsor and key collaborators
         primary_sponsor TEXT,
-        collaborators TEXT,
+        primary_sponsor_class VARCHAR(100),
+        collaborators JSONB,
+        lead_sponsor TEXT,
         
-        -- Study design
+        -- Official trial titles
+        brief_title TEXT,
+        official_title TEXT,
+        
+        -- ========== SCIENTIFIC CONTENT ==========
+        -- Study Design: Randomization, blinding, control types
         allocation VARCHAR(100),
         intervention_model VARCHAR(100),
+        intervention_model_description TEXT,
         masking VARCHAR(100),
+        masking_description TEXT,
         primary_purpose VARCHAR(100),
         
-        -- JSON fields for complex nested data
+        -- Intervention: Drug details, dosages, administration routes
         interventions JSONB,
+        intervention_types JSONB,
+        drug_names JSONB,
+        dosages JSONB,
+        administration_routes JSONB,
+        
+        -- Mechanism of Action: Extracted from descriptions
+        mechanisms_of_action JSONB,
+        
+        -- Target/Pathway: Biological targets being addressed
+        target_pathways JSONB,
+        
+        -- Gene, Protein, Chemical compound (separate structured fields)
+        target_genes JSONB,
+        target_proteins JSONB,
+        target_chemical_compounds JSONB,
+        
+        -- Biomarkers: Used for enrollment, stratification, or outcomes
+        biomarkers JSONB,
+        biomarker_types JSONB,
+        
+        -- Arms/Groups: Number, types, and descriptions
         arms_groups JSONB,
+        number_of_arms INTEGER,
+        
+        -- Primary/Secondary Outcomes: Endpoints and timeframes
         primary_outcomes JSONB,
         secondary_outcomes JSONB,
-        mechanism_and_targets JSONB,
-        biomarkers JSONB,
+        other_outcomes JSONB,
         
-        -- Eligibility criteria
+        -- ========== PATIENT-RELATED INFORMATION ==========
+        -- Eligibility Criteria: Complete inclusion/exclusion criteria
         inclusion_criteria JSONB,
         exclusion_criteria JSONB,
         
-        -- Demographics and patient info
+        -- Structured eligibility parameters
+        eligibility_criteria_structured JSONB,
+        
+        -- Demographics: Age, sex, and other demographic requirements
         min_age INTEGER,
         max_age INTEGER,
         eligible_sex VARCHAR(20),
+        healthy_volunteers VARCHAR(20),
         demographics_other JSONB,
         
-        -- Disease characteristics
+        -- Disease Characteristics: Subtypes, stages, severity
+        conditions JSONB,
         disease_subtypes JSONB,
         disease_stages JSONB,
         disease_severity TEXT,
+        keywords JSONB,
         
-        -- Prior treatments
+        -- Prior Treatments: Required or excluded previous therapies
         required_prior_treatments JSONB,
         excluded_prior_treatments JSONB,
         
-        -- Operational aspects
+        -- ========== OPERATIONAL ASPECTS ==========
+        -- Locations: Trial sites, countries, and regions
         locations JSONB,
+        countries JSONB,
+        facility_names JSONB,
+        facility_status JSONB,
+        
+        -- Investigators: Site PIs and leadership teams
         investigators JSONB,
+        overall_officials JSONB,
+        responsible_party JSONB,
+        
+        -- Enrollment Status: Site-specific recruitment progress
         enrollment_status JSONB,
+        site_recruitment_status JSONB,
+        
+        -- IPD Sharing: Data sharing commitments and platforms
         ipd_sharing JSONB,
+        ipd_sharing_plan TEXT,
+        ipd_sharing_time_frame TEXT,
+        ipd_sharing_access_criteria TEXT,
+        ipd_sharing_url TEXT,
+        
+        -- Contact information
+        central_contacts JSONB,
+        overall_contact JSONB,
+        overall_contact_backup JSONB,
+        
+        -- References and links
+        trial_references JSONB,
+        results_references JSONB,
+        provided_documents JSONB,
+        
+        -- Study monitoring and oversight
+        oversight_info JSONB,
+        data_monitoring_committee TEXT,
+        
+        -- Additional metadata
+        why_stopped TEXT,
+        has_expanded_access TEXT,
+        expanded_access_info JSONB,
         
         -- Quality assessment (if available)
         analysis_score INTEGER,
@@ -113,18 +198,59 @@ def create_table_schema(cursor, table_name="myclinicaltrials"):
     
     # Create indexes for better performance
     indexes_sql = f"""
-    -- Indexes for common queries
+    -- Core metadata indexes
     CREATE INDEX idx_{table_name}_nct_id ON {table_name}(nct_id);
     CREATE INDEX idx_{table_name}_status ON {table_name}(status);
     CREATE INDEX idx_{table_name}_phase ON {table_name}(phase);
     CREATE INDEX idx_{table_name}_study_type ON {table_name}(study_type);
     CREATE INDEX idx_{table_name}_primary_sponsor ON {table_name}(primary_sponsor);
+    CREATE INDEX idx_{table_name}_primary_sponsor_class ON {table_name}(primary_sponsor_class);
+    CREATE INDEX idx_{table_name}_enrollment_type ON {table_name}(enrollment_type);
+    CREATE INDEX idx_{table_name}_allocation ON {table_name}(allocation);
+    CREATE INDEX idx_{table_name}_intervention_model ON {table_name}(intervention_model);
+    CREATE INDEX idx_{table_name}_masking ON {table_name}(masking);
+    CREATE INDEX idx_{table_name}_primary_purpose ON {table_name}(primary_purpose);
     CREATE INDEX idx_{table_name}_created_at ON {table_name}(created_at);
+    CREATE INDEX idx_{table_name}_start_date ON {table_name}(start_date);
+    CREATE INDEX idx_{table_name}_completion_date ON {table_name}(completion_date);
     
-    -- GIN indexes for JSONB fields
+    -- Patient information indexes
+    CREATE INDEX idx_{table_name}_eligible_sex ON {table_name}(eligible_sex);
+    CREATE INDEX idx_{table_name}_healthy_volunteers ON {table_name}(healthy_volunteers);
+    CREATE INDEX idx_{table_name}_min_age ON {table_name}(min_age);
+    CREATE INDEX idx_{table_name}_max_age ON {table_name}(max_age);
+    CREATE INDEX idx_{table_name}_target_enrollment ON {table_name}(target_enrollment);
+    CREATE INDEX idx_{table_name}_actual_enrollment ON {table_name}(actual_enrollment);
+    
+    -- GIN indexes for JSONB fields (Core Scientific Content)
     CREATE INDEX idx_{table_name}_interventions_gin ON {table_name} USING GIN (interventions);
+    CREATE INDEX idx_{table_name}_drug_names_gin ON {table_name} USING GIN (drug_names);
     CREATE INDEX idx_{table_name}_biomarkers_gin ON {table_name} USING GIN (biomarkers);
+    CREATE INDEX idx_{table_name}_target_genes_gin ON {table_name} USING GIN (target_genes);
+    CREATE INDEX idx_{table_name}_target_proteins_gin ON {table_name} USING GIN (target_proteins);
+    CREATE INDEX idx_{table_name}_target_chemical_compounds_gin ON {table_name} USING GIN (target_chemical_compounds);
+    CREATE INDEX idx_{table_name}_mechanisms_of_action_gin ON {table_name} USING GIN (mechanisms_of_action);
+    
+    -- GIN indexes for JSONB fields (Patient Information)
+    CREATE INDEX idx_{table_name}_conditions_gin ON {table_name} USING GIN (conditions);
+    CREATE INDEX idx_{table_name}_disease_subtypes_gin ON {table_name} USING GIN (disease_subtypes);
+    CREATE INDEX idx_{table_name}_keywords_gin ON {table_name} USING GIN (keywords);
+    CREATE INDEX idx_{table_name}_inclusion_criteria_gin ON {table_name} USING GIN (inclusion_criteria);
+    CREATE INDEX idx_{table_name}_exclusion_criteria_gin ON {table_name} USING GIN (exclusion_criteria);
+    
+    -- GIN indexes for JSONB fields (Operational)
+    CREATE INDEX idx_{table_name}_countries_gin ON {table_name} USING GIN (countries);
+    CREATE INDEX idx_{table_name}_locations_gin ON {table_name} USING GIN (locations);
+    CREATE INDEX idx_{table_name}_investigators_gin ON {table_name} USING GIN (investigators);
+    CREATE INDEX idx_{table_name}_collaborators_gin ON {table_name} USING GIN (collaborators);
+    
+    -- GIN indexes for JSONB fields (Outcomes)
+    CREATE INDEX idx_{table_name}_primary_outcomes_gin ON {table_name} USING GIN (primary_outcomes);
+    CREATE INDEX idx_{table_name}_secondary_outcomes_gin ON {table_name} USING GIN (secondary_outcomes);
+    
+    -- GIN indexes for full data and analysis
     CREATE INDEX idx_{table_name}_analyzed_data_gin ON {table_name} USING GIN (analyzed_data);
+    CREATE INDEX idx_{table_name}_original_data_gin ON {table_name} USING GIN (original_data);
     
     -- Full text search index
     CREATE INDEX idx_{table_name}_search_vector ON {table_name} USING GIN (search_vector);
@@ -138,10 +264,19 @@ def create_table_schema(cursor, table_name="myclinicaltrials"):
         NEW.updated_at = CURRENT_TIMESTAMP;
         NEW.search_vector = 
             setweight(to_tsvector('english', COALESCE(NEW.nct_id, '')), 'A') ||
+            setweight(to_tsvector('english', COALESCE(NEW.brief_title, '')), 'A') ||
+            setweight(to_tsvector('english', COALESCE(NEW.official_title, '')), 'A') ||
             setweight(to_tsvector('english', COALESCE(NEW.primary_sponsor, '')), 'B') ||
-            setweight(to_tsvector('english', COALESCE(NEW.phase, '')), 'C') ||
-            setweight(to_tsvector('english', COALESCE(NEW.status, '')), 'C') ||
-            setweight(to_tsvector('english', COALESCE(NEW.disease_severity, '')), 'D');
+            setweight(to_tsvector('english', COALESCE(NEW.phase, '')), 'B') ||
+            setweight(to_tsvector('english', COALESCE(NEW.status, '')), 'B') ||
+            setweight(to_tsvector('english', COALESCE(NEW.study_type, '')), 'B') ||
+            setweight(to_tsvector('english', COALESCE(NEW.primary_purpose, '')), 'C') ||
+            setweight(to_tsvector('english', COALESCE(NEW.intervention_model, '')), 'C') ||
+            setweight(to_tsvector('english', COALESCE(NEW.allocation, '')), 'C') ||
+            setweight(to_tsvector('english', COALESCE(NEW.masking, '')), 'C') ||
+            setweight(to_tsvector('english', COALESCE(NEW.disease_severity, '')), 'D') ||
+            setweight(to_tsvector('english', COALESCE(NEW.eligible_sex, '')), 'D') ||
+            setweight(to_tsvector('english', COALESCE(NEW.healthy_volunteers, '')), 'D');
         RETURN NEW;
     END;
     $$ LANGUAGE plpgsql;
