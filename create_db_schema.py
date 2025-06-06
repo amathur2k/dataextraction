@@ -124,8 +124,8 @@ def create_table_schema(cursor, table_name="myclinicaltrials"):
         -- Demographics: Age, sex, and other demographic requirements
         min_age INTEGER,
         max_age INTEGER,
-        eligible_sex VARCHAR(20),
-        healthy_volunteers VARCHAR(20),
+        eligible_sex VARCHAR(100),
+        healthy_volunteers VARCHAR(100),
         demographics_other JSONB,
         
         -- Disease Characteristics: Subtypes, stages, severity
